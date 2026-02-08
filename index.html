@@ -2,74 +2,78 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Poker Odds Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
+        /* Empêche le rebond sur iOS et assure la taille fixe */
+        html, body { 
+            height: 100%; 
+            overflow: hidden; 
+            position: fixed; 
+            width: 100%;
+        }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        .card-active { ring: 2px solid #FBBF24; transform: scale(1.05); z-index: 10; box-shadow: 0 0 20px rgba(251,191,36,0.3); }
+        
         @keyframes slideInUp {
-            from { transform: translateY(20px); opacity: 0; }
+            from { transform: translateY(15px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-        .animate-gauge { animation: slideInUp 0.7s ease-out forwards; }
+        .animate-gauge { animation: slideInUp 0.5s ease-out forwards; }
     </style>
 </head>
-<body class="h-screen bg-[#0A0C11] text-slate-100 font-sans flex flex-col overflow-hidden relative">
+<body class="h-[100dvh] bg-[#0A0C11] text-slate-100 font-sans flex flex-col relative">
     <div class="absolute inset-0 pointer-events-none opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]"></div>
 
     <div id="app" class="flex-1 flex flex-col w-full max-w-md mx-auto z-10 overflow-hidden">
         
-        <div class="px-4 py-2 flex flex-col items-center gap-2 bg-[#0F1218]/80 border-b border-white/5">
-            <div class="flex items-center gap-6">
+        <div class="px-4 py-2 flex flex-col items-center gap-1.5 bg-[#0F1218]/90 border-b border-white/5 shrink-0">
+            <div class="flex items-center gap-4 sm:gap-6">
                 <div class="flex flex-col items-center gap-1">
                     <span class="text-[7px] font-black text-slate-600 uppercase tracking-widest">Hand</span>
-                    <div class="flex gap-2" id="hole-container"></div>
+                    <div class="flex gap-1.5" id="hole-container"></div>
                 </div>
                 <div class="flex flex-col items-center gap-1">
                     <span class="text-[7px] font-black text-slate-600 uppercase tracking-widest">Board</span>
-                    <div class="flex gap-1.5" id="board-container"></div>
+                    <div class="flex gap-1" id="board-container"></div>
                 </div>
             </div>
         </div>
 
-        <div class="flex-1 flex flex-col overflow-hidden px-4 py-4">
-            <div class="flex justify-center mb-4 shrink-0">
-                <div id="current-hand-badge" class="bg-[#FBBF24] text-black px-8 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest shadow-[0_0_20px_rgba(251,191,36,0.2)]">
+        <div class="flex-1 flex flex-col min-h-0 overflow-hidden px-4 py-3">
+            <div class="flex justify-center mb-3 shrink-0">
+                <div id="current-hand-badge" class="bg-[#FBBF24] text-black px-6 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(251,191,36,0.2)]">
                     CURRENT: HIGH
                 </div>
             </div>
 
-            <h2 class="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 text-center shrink-0">FINAL PROBABILITIES (RIVER)</h2>
+            <h2 class="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 text-center shrink-0">PROBABILITIES</h2>
 
-            <div id="gauges-container" class="flex-1 flex items-stretch justify-center gap-2 sm:gap-3 px-1 min-h-0">
+            <div id="gauges-container" class="flex-1 flex items-stretch justify-center gap-2 min-h-0">
                 </div>
         </div>
 
-        <div id="picker-area" class="bg-[#0F1218] border-t border-white/10 pt-3 pb-8 px-5 shadow-[0_-20px_60px_rgba(0,0,0,0.9)] shrink-0">
+        <div id="picker-area" class="bg-[#0F1218] border-t border-white/10 pt-3 pb-6 px-5 shadow-[0_-20px_50px_rgba(0,0,0,0.8)] shrink-0">
             </div>
     </div>
 
     <script>
-        // --- DATA ---
         const SUITS = [
-            { id: 's', symbol: '♠', color: 'text-black', pickerColor: 'text-white', label: 'Spades' },
-            { id: 'h', symbol: '♥', color: 'text-red-600', pickerColor: 'text-red-500', label: 'Hearts' },
-            { id: 'd', symbol: '♦', color: 'text-red-600', pickerColor: 'text-red-500', label: 'Diamonds' },
-            { id: 'c', symbol: '♣', color: 'text-black', pickerColor: 'text-white', label: 'Clubs' },
+            { id: 's', symbol: '♠', color: 'text-black', pickerColor: 'text-white' },
+            { id: 'h', symbol: '♥', color: 'text-red-600', pickerColor: 'text-red-500' },
+            { id: 'd', symbol: '♦', color: 'text-red-600', pickerColor: 'text-red-500' },
+            { id: 'c', symbol: '♣', color: 'text-black', pickerColor: 'text-white' },
         ];
         const RANKS = [
             { val: 14, label: 'A' }, { val: 13, label: 'K' }, { val: 12, label: 'Q' },
             { val: 11, label: 'J' }, { val: 10, label: '10' }, { val: 9, label: '9' },
             { val: 8, label: '8' }, { val: 7, label: '7' }, { val: 6, label: '6' },
-            { val: 5, label: '5' }, { val: 4, label: '4' }, { val: 3, label: '3' },
-            { val: 2, label: '2' }
+            { val: 5, label: '5' }, { val: 4, label: '4' }, { val: 3, label: '3' }, { val: 2, label: '2' }
         ];
         const HAND_NAMES = ["HIGH", "PAIR", "2-PAIR", "TRIPS", "STRAIGHT", "FLUSH", "FULL HOUSE", "QUADS", "STR. FLUSH"];
 
-        // --- STATE ---
         let state = {
             hole: [null, null],
             board: [null, null, null, null, null],
@@ -78,7 +82,6 @@
             history: []
         };
 
-        // --- LOGIC ---
         function evaluateHand(cards) {
             if (cards.length < 5) return 0;
             const sorted = [...cards].sort((a, b) => b.rank - a.rank);
@@ -88,8 +91,7 @@
             ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
             const countValues = Object.values(counts).sort((a, b) => b - a);
             
-            let isFlush = false;
-            let flushSuit = null;
+            let isFlush = false, flushSuit = null;
             const suitCounts = {};
             suits.forEach(s => suitCounts[s] = (suitCounts[s] || 0) + 1);
             for (let s in suitCounts) { if (suitCounts[s] >= 5) { isFlush = true; flushSuit = s; } }
@@ -147,46 +149,41 @@
             return results.map(count => (count / totalSims) * 100);
         }
 
-        // --- RENDER FUNCTIONS ---
         function render() {
-            // Cards Hole
-            const holeContainer = document.getElementById('hole-container');
-            holeContainer.innerHTML = state.hole.map((c, i) => createCardHtml(c, `H${i+1}`, state.activeSlot.type === 'hole' && state.activeSlot.index === i, false, `selectSlot('hole', ${i})`)).join('');
+            // Hole Cards
+            document.getElementById('hole-container').innerHTML = state.hole.map((c, i) => 
+                createCardHtml(c, `H${i+1}`, state.activeSlot.type === 'hole' && state.activeSlot.index === i, false, `selectSlot('hole', ${i})`)
+            ).join('');
             
-            // Cards Board
-            const boardContainer = document.getElementById('board-container');
-            boardContainer.innerHTML = state.board.map((c, i) => createCardHtml(c, i < 3 ? "F" : i === 3 ? "T" : "R", state.activeSlot.type === 'board' && state.activeSlot.index === i, true, `selectSlot('board', ${i})`)).join('');
+            // Board Cards
+            document.getElementById('board-container').innerHTML = state.board.map((c, i) => 
+                createCardHtml(c, i < 3 ? "F" : i === 3 ? "T" : "R", state.activeSlot.type === 'board' && state.activeSlot.index === i, true, `selectSlot('board', ${i})`)
+            ).join('');
 
-            // Badge Hand
             const currentRank = evaluateHand([...state.hole, ...state.board].filter(Boolean));
             document.getElementById('current-hand-badge').innerText = `CURRENT: ${HAND_NAMES[currentRank]}`;
 
-            // Gauges
             renderGauges();
-
-            // Picker
             renderPicker();
-            
             lucide.createIcons();
         }
 
         function createCardHtml(card, label, isActive, isBoard, onClick) {
-            const activeClass = isActive ? 'ring-2 ring-amber-400 scale-105 z-10 shadow-[0_0_20px_rgba(251,191,36,0.3)]' : 'ring-1 ring-white/10';
-            const bgClass = card ? 'bg-white shadow-xl' : 'bg-slate-900/40 border border-slate-800 border-dashed';
-            const sizeClass = isBoard ? 'w-9 h-12 sm:w-11 sm:h-16' : 'w-12 h-18 sm:w-14 sm:h-20';
+            const activeClass = isActive ? 'ring-2 ring-amber-400 scale-105 z-10 shadow-[0_0_15px_rgba(251,191,36,0.3)]' : 'ring-1 ring-white/10';
+            const bgClass = card ? 'bg-white shadow-lg' : 'bg-slate-900/40 border border-slate-800 border-dashed';
+            const sizeClass = isBoard ? 'w-8 h-11 sm:w-11 sm:h-16' : 'w-11 h-16 sm:w-14 sm:h-20';
             
-            let content = `<span class="text-[6px] text-slate-500 font-black uppercase opacity-60 text-center px-1 leading-tight">${label}</span>`;
+            let content = `<span class="text-[6px] text-slate-500 font-black uppercase opacity-60">${label}</span>`;
             if (card) {
                 const s = SUITS.find(s => s.id === card.suit);
                 const r = RANKS.find(r => r.val === card.rank);
                 content = `
-                    <div class="flex flex-col items-center justify-center h-full w-full">
-                        <span class="${isBoard ? 'text-sm' : 'text-base'} font-black text-center leading-none mb-0.5 ${s.color}">${r.label}</span>
-                        <span class="text-xl sm:text-2xl leading-none ${s.color}">${s.symbol}</span>
+                    <div class="flex flex-col items-center justify-center leading-none">
+                        <span class="${isBoard ? 'text-xs' : 'text-sm'} font-black ${s.color}">${r.label}</span>
+                        <span class="${isBoard ? 'text-lg' : 'text-xl'} ${s.color}">${s.symbol}</span>
                     </div>`;
             }
-
-            return `<button onclick="${onClick}" class="relative rounded-lg flex flex-col items-center justify-center transition-all duration-200 ${sizeClass} ${activeClass} ${bgClass}">${content}</button>`;
+            return `<button onclick="${onClick}" class="relative rounded flex flex-col items-center justify-center transition-all ${sizeClass} ${activeClass} ${bgClass}">${content}</button>`;
         }
 
         function renderGauges() {
@@ -195,44 +192,37 @@
 
             if (!probs) {
                 container.innerHTML = `
-                    <div class="w-full flex flex-col items-center justify-center border border-slate-800/20 border-dashed rounded-[32px] bg-slate-900/10">
-                        <i data-lucide="info" class="text-slate-800 mb-3"></i>
-                        <p class="text-[10px] uppercase font-bold tracking-[0.1em] text-slate-700 text-center px-10 leading-tight">
-                            Enter cards to calculate real-time gauges
-                        </p>
+                    <div class="w-full flex flex-col items-center justify-center border border-slate-800/20 border-dashed rounded-[20px] bg-slate-900/10">
+                        <i data-lucide="info" class="text-slate-800 mb-2 w-5"></i>
+                        <p class="text-[9px] uppercase font-bold text-slate-700 text-center px-6">Add cards to see odds</p>
                     </div>`;
                 return;
             }
 
             container.innerHTML = probs.map((prob, idx) => {
                 if (prob <= 0) return '';
-                const h = Math.min(prob, 100);
                 return `
-                    <div class="flex flex-col items-center flex-1 max-w-[50px] animate-gauge">
-                        <div class="h-6 flex items-center justify-center mb-1 shrink-0">
-                            <span class="text-[11px] font-mono font-black text-[#FBBF24]">${prob >= 99.9 ? "100" : prob.toFixed(prob < 10 && prob > 0 ? 1 : 0)}%</span>
+                    <div class="flex flex-col items-center flex-1 max-w-[45px] animate-gauge">
+                        <span class="text-[9px] font-mono font-black text-[#FBBF24] mb-1">${prob >= 99.9 ? "100" : prob.toFixed(prob < 5 ? 1 : 0)}%</span>
+                        <div class="flex-1 w-full bg-[#11141B] rounded border border-white/5 relative flex flex-col justify-end overflow-hidden">
+                            <div class="w-full bg-[#FBBF24] transition-all duration-700 shadow-[0_0_10px_rgba(251,191,36,0.2)]" style="height: ${prob}%"></div>
                         </div>
-                        <div class="flex-1 w-full bg-[#11141B] rounded-md border border-white/5 relative flex flex-col justify-end overflow-hidden shadow-inner">
-                            <div class="w-full bg-[#FBBF24] transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(251,191,36,0.3)]" style="height: ${h}%">
-                                <div class="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
-                            </div>
-                        </div>
-                        <div class="h-10 flex items-center justify-center w-full px-0.5 mt-2 shrink-0">
-                            <span class="text-[8px] font-black uppercase tracking-tighter text-slate-400 text-center leading-tight">${HAND_NAMES[idx]}</span>
-                        </div>
+                        <span class="text-[7px] font-black uppercase tracking-tighter text-slate-500 mt-1 text-center leading-tight h-5 flex items-center">${HAND_NAMES[idx]}</span>
                     </div>`;
             }).join('');
         }
 
         function renderPicker() {
             const area = document.getElementById('picker-area');
+            let content = "";
+
             if (!state.pickingSuit) {
-                area.innerHTML = `
-                    <div class="flex flex-col gap-3">
-                        <span class="text-[8px] font-black text-slate-600 uppercase tracking-widest text-center">Step 1: Select Suit</span>
-                        <div class="grid grid-cols-4 gap-4">
+                content = `
+                    <div class="flex flex-col gap-2">
+                        <span class="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] text-center">Step 1: Suit</span>
+                        <div class="grid grid-cols-4 gap-3">
                             ${SUITS.map(s => `
-                                <button onclick="setSuit('${s.id}')" class="h-11 bg-slate-800/40 hover:bg-slate-700 rounded-xl flex items-center justify-center border border-white/5 transition-all active:scale-90 shadow-inner group">
+                                <button onclick="setSuit('${s.id}')" class="h-10 bg-slate-800/40 rounded-lg flex items-center justify-center border border-white/5 active:scale-95 transition-all">
                                     <span class="text-2xl ${s.pickerColor}">${s.symbol}</span>
                                 </button>
                             `).join('')}
@@ -240,87 +230,55 @@
                     </div>`;
             } else {
                 const suit = SUITS.find(s => s.id === state.pickingSuit);
-                const selectedCards = [...state.hole, ...state.board].filter(Boolean);
-                area.innerHTML = `
+                const usedInDeck = [...state.hole, ...state.board].filter(Boolean);
+                content = `
                     <div class="flex flex-col gap-2">
-                        <div class="flex justify-between items-center px-1 mb-1">
-                            <button onclick="setSuit(null)" class="text-slate-500 hover:text-white flex items-center gap-1 transition-colors group">
-                                <i data-lucide="chevron-left" class="w-4 h-4"></i>
-                                <span class="text-[8px] font-black uppercase tracking-wider">Back</span>
+                        <div class="flex justify-between items-center mb-1">
+                            <button onclick="setSuit(null)" class="text-slate-500 flex items-center gap-1">
+                                <i data-lucide="chevron-left" class="w-3"></i><span class="text-[8px] font-black uppercase">Back</span>
                             </button>
-                            <div class="flex items-center gap-2">
-                                <span class="text-lg leading-none ${suit.pickerColor}">${suit.symbol}</span>
-                                <span class="text-[8px] font-black text-slate-600 uppercase tracking-widest">Select Rank</span>
-                            </div>
+                            <span class="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em]">Step 2: Rank</span>
+                            <span class="text-lg ${suit.pickerColor}">${suit.symbol}</span>
                         </div>
-                        <div class="grid grid-cols-7 gap-1.5">
+                        <div class="grid grid-cols-7 gap-1">
                             ${RANKS.map(r => {
-                                const used = selectedCards.some(c => c.rank === r.val && c.suit === state.pickingSuit);
-                                return `<button ${used ? 'disabled' : ''} onclick="pickRank(${r.val})" class="h-8 rounded-lg flex items-center justify-center text-[11px] font-black transition-all ${used ? 'bg-black text-slate-900 opacity-20' : 'bg-slate-800 text-slate-300 active:bg-[#FBBF24] active:text-black hover:bg-slate-700'}">${r.label}</button>`;
+                                const used = usedInDeck.some(c => c.rank === r.val && c.suit === state.pickingSuit);
+                                return `<button ${used ? 'disabled' : ''} onclick="pickRank(${r.val})" class="h-8 rounded text-[10px] font-black ${used ? 'bg-black text-slate-900 opacity-20' : 'bg-slate-800 text-slate-300 active:bg-[#FBBF24] active:text-black'}">${r.label}</button>`;
                             }).join('')}
                         </div>
                     </div>`;
             }
             
-            // Add Undo/Reset at bottom
-            area.innerHTML += `
-                <div class="flex justify-center gap-24 border-t border-white/5 mt-5 pt-4">
-                    <button onclick="undo()" class="flex flex-col items-center gap-1 text-slate-500 hover:text-white transition-colors group">
-                        <i data-lucide="undo" class="w-[18px]"></i>
-                        <span class="text-[8px] font-black uppercase tracking-[0.2em]">Undo</span>
+            area.innerHTML = content + `
+                <div class="flex justify-center gap-20 border-t border-white/5 mt-4 pt-3">
+                    <button onclick="undo()" class="flex flex-col items-center gap-1 text-slate-500 active:text-white">
+                        <i data-lucide="undo" class="w-4"></i><span class="text-[7px] font-black uppercase">Undo</span>
                     </button>
-                    <button onclick="reset()" class="flex flex-col items-center gap-1 text-slate-500 hover:text-red-500 transition-colors group">
-                        <i data-lucide="rotate-ccw" class="w-[18px]"></i>
-                        <span class="text-[8px] font-black uppercase tracking-[0.2em]">Reset</span>
+                    <button onclick="reset()" class="flex flex-col items-center gap-1 text-slate-500 active:text-red-500">
+                        <i data-lucide="rotate-ccw" class="w-4"></i><span class="text-[7px] font-black uppercase">Reset</span>
                     </button>
                 </div>`;
         }
 
-        // --- ACTIONS ---
-        window.selectSlot = (type, index) => {
-            state.activeSlot = { type, index };
-            state.pickingSuit = null;
-            render();
-        };
-
-        window.setSuit = (suitId) => {
-            state.pickingSuit = suitId;
-            render();
-        };
-
+        window.selectSlot = (type, index) => { state.activeSlot = { type, index }; state.pickingSuit = null; render(); };
+        window.setSuit = (suitId) => { state.pickingSuit = suitId; render(); };
         window.pickRank = (rank) => {
             if (!state.pickingSuit) return;
             state.history.push(JSON.parse(JSON.stringify({ hole: state.hole, board: state.board, activeSlot: state.activeSlot })));
-            
-            const newCard = { rank, suit: state.pickingSuit };
             if (state.activeSlot.type === 'hole') {
-                state.hole[state.activeSlot.index] = newCard;
-                if (state.activeSlot.index === 0) state.activeSlot = { type: 'hole', index: 1 };
+                state.hole[state.activeSlot.index] = { rank, suit: state.pickingSuit };
+                if (state.activeSlot.index === 0) state.activeSlot.index = 1;
                 else state.activeSlot = { type: 'board', index: 0 };
             } else {
-                state.board[state.activeSlot.index] = newCard;
+                state.board[state.activeSlot.index] = { rank, suit: state.pickingSuit };
                 if (state.activeSlot.index < 4) state.activeSlot.index++;
             }
             state.pickingSuit = null;
             render();
         };
+        window.undo = () => { if (state.history.length > 0) { const last = state.history.pop(); state.hole = last.hole; state.board = last.board; state.activeSlot = last.activeSlot; state.pickingSuit = null; render(); } };
+        window.reset = () => { state = { hole: [null, null], board: [null, null, null, null, null], activeSlot: { type: 'hole', index: 0 }, pickingSuit: null, history: [] }; render(); };
 
-        window.undo = () => {
-            if (state.history.length === 0) return;
-            const last = state.history.pop();
-            state.hole = last.hole;
-            state.board = last.board;
-            state.activeSlot = last.activeSlot;
-            state.pickingSuit = null;
-            render();
-        };
-
-        window.reset = () => {
-            state = { hole: [null, null], board: [null, null, null, null, null], activeSlot: { type: 'hole', index: 0 }, pickingSuit: null, history: [] };
-            render();
-        };
-
-        // Init
         render();
     </script>
 </body>
